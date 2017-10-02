@@ -1,0 +1,15 @@
+[package]
+name = "project3"
+version = "0.1.0"
+authors = ["Sumner Evans <sumner.evans98@gmail.com>"]
+
+[dependencies]
+flight = { git = "https://github.com/CSM-Dream-Team/flight" }
+clap = "^2.26.2"
+simplelog = "^0.4.2"
+glutin = "^0.9.2"
+gfx_window_glutin = "^0.17.0"
+gfx_device_gl = "^0.14.4"
+nalgebra = "*"
+gfx = "*"
+log = "*"
