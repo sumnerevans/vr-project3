@@ -59,7 +59,8 @@ fn main() {
         .with_dimensions(render_width, render_height)
         .with_title("Mock OpenVR Display");
     let context = glutin::ContextBuilder::new();
-    // Fuuny thing I found here: changing `_window` to `_` (ignoring it) makes everything explode because of early drop.
+    // Fuuny thing I found here: changing `_window` to `_` (ignoring it) makes everything explode
+    // because of early drop.
     let (window, mut device, mut factory, wcolor, wdepth) =
         gfx_window_glutin::init::<Rgba8, DepthStencil>(window_builder, context, &events_loop);
 
