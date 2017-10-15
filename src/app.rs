@@ -236,8 +236,12 @@ impl<R: gfx::Resources> App<R> {
         self.solid.draw(ctx, vrm.stage, &self.grid);
 
         // Draw snowman
-        let snowman_mtx = vrm.stage * Translation3::new(6., 0., 6.);
-        self.pbr.draw(ctx, snowman_mtx, &self.snowman);
+        let snowman1_mtx = vrm.stage * Translation3::new(6., 0., 6.);
+        let snowman2_mtx = vrm.stage * Translation3::new(3., 0., 6.);
+        let snowman3_mtx = vrm.stage * Translation3::new(6., 0., 3.);
+        self.pbr.draw(ctx, snowman1_mtx, &self.snowman);
+        self.pbr.draw(ctx, snowman2_mtx, &self.snowman);
+        self.pbr.draw(ctx, snowman3_mtx, &self.snowman);
 
         // Draw controllers
         for cont in vrm.controllers() {
