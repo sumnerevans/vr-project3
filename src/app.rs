@@ -24,6 +24,7 @@ pub struct App<R: gfx::Resources> {
     controller_grid: Mesh<R, VertC, ()>,
     controller: PbrMesh<R>,
     snowman: PbrMesh<R>,
+    snow_block: PbrMesh<R>,
     start_time: Instant,
     primary: ViveController,
     secondary: ViveController,
@@ -173,6 +174,7 @@ impl<R: gfx::Resources> App<R> {
                                               "assets/controller.obj",
                                               [0x80, 0x80, 0xFF, 0xFF])?,
             snowman: load::object_directory(factory, "assets/snowman/")?,
+            snow_block: load::object_directory(factory, "assets/snow-block/")?,
             start_time: Instant::now(),
             primary: ViveController {
                 is: primary(),
@@ -241,7 +243,7 @@ impl<R: gfx::Resources> App<R> {
         let snowman3_mtx = vrm.stage * Translation3::new(6., 0., 3.);
         self.pbr.draw(ctx, snowman1_mtx, &self.snowman);
         self.pbr.draw(ctx, snowman2_mtx, &self.snowman);
-        self.pbr.draw(ctx, snowman3_mtx, &self.snowman);
+        self.pbr.draw(ctx, snowman3_mtx, &self.snow_block);
 
         // Draw controllers
         for cont in vrm.controllers() {
