@@ -138,12 +138,12 @@ impl<R: gfx::Resources> App<R> {
         let snow_block = load::object_directory(factory, "assets/snow-block/")?;
 
         // TODO: REMOVE, need to do controllers
-        let block = Cuboid::new(Vector3::new(0.3 / 2., 0.3 / 2., 0.6 / 2.));
+        let block = Cuboid::new(Vector3::new(0.15, 0.15, 0.3));
         let mut block_rb = RigidBody::new_dynamic(block, 100., 0.0, 0.8);
         block_rb.set_margin(0.);
         block_rb.set_translation(Translation3::new(1.5, 0.7, 1.5));
 
-        let block = Cuboid::new(Vector3::new(0.3 / 2., 0.3 / 2., 0.3 / 2.));
+        let block = Cuboid::new(Vector3::new(0.15, 0.15, 0.3));
         let mut block_rb2 = RigidBody::new_dynamic(block, 100., 0.0, 0.8);
         block_rb2.set_margin(0.);
         block_rb2.set_translation(Translation3::new(1.5, 1.4, 1.5));
@@ -242,9 +242,8 @@ impl<R: gfx::Resources> App<R> {
 
         // Draw the snow blocks
         for block in &self.objects {
-            self.pbr.draw(ctx,
-                          na::convert(vrm.stage * (*block.0.borrow().position())),
-                          &self.snow_block);
+            let block_pos = na::convert(vrm.stage * (*block.0.borrow().position()));
+            self.pbr.draw(ctx, block_pos, &self.snow_block);
         }
 
         // Draw controllers
