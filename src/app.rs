@@ -38,10 +38,9 @@ pub struct App<R: gfx::Resources> {
     controller: PbrMesh<R>,
     snow_block: PbrMesh<R>,
     snowman: PbrMesh<R>,
-    start_time: Instant,
+    last_time: Option<Instant>,
     primary: ViveController,
     secondary: ViveController,
-    prev_t: f64,
     world: World<f32>,
 }
 
@@ -133,20 +132,22 @@ impl<R: gfx::Resources> App<R> {
 
         // Floor Plane
         let floor = Plane::new(Vector3::new(0.0, 1.0, 0.0));
-        world.add_rigid_body(RigidBody::new_static(floor, 0.1, 0.6));
+        let mut floor_rb = RigidBody::new_static(floor, 0.1, 0.6);
+        floor_rb.set_margin(0.00001);
+        world.add_rigid_body(floor_rb);
 
         let snow_block = load::object_directory(factory, "assets/snow-block/")?;
 
         // TODO: REMOVE, need to do controllers
         let block = Cuboid::new(Vector3::new(0.15, 0.15, 0.3));
         let mut block_rb = RigidBody::new_dynamic(block, 100., 0.0, 0.8);
-        block_rb.set_margin(0.);
-        block_rb.set_translation(Translation3::new(1.5, 0.7, 1.5));
+        block_rb.set_margin(0.00001);
+        block_rb.set_translation(Translation3::new(1.5, 1.0, 1.5));
 
         let block = Cuboid::new(Vector3::new(0.15, 0.15, 0.3));
         let mut block_rb2 = RigidBody::new_dynamic(block, 100., 0.0, 0.8);
-        block_rb2.set_margin(0.);
-        block_rb2.set_translation(Translation3::new(1.5, 1.4, 1.5));
+        block_rb2.set_margin(0.00001);
+        block_rb2.set_translation(Translation3::new(1.5, 2.0, 1.5));
 
         let objs = vec![(world.add_rigid_body(block_rb), snow_block.clone()),
                         (world.add_rigid_body(block_rb2), snow_block.clone())];
@@ -162,7 +163,7 @@ impl<R: gfx::Resources> App<R> {
                                            [0x80, 0x80, 0xFF, 0xFF])?,
             snowman: load::object_directory(factory, "assets/snowman/")?,
             snow_block: snow_block,
-            start_time: Instant::now(),
+            last_time: None,
             primary: ViveController {
                 is: primary(),
                 pad: Point2::new(1., 0.),
@@ -170,13 +171,17 @@ impl<R: gfx::Resources> App<R> {
             },
             secondary: ViveController { is: secondary(), ..Default::default() },
             world: world,
-            prev_t: 0.,
         })
     }
 
     pub fn draw<C: gfx::CommandBuffer<R>>(&mut self, ctx: &mut DrawParams<R, C>, vrm: &VrMoment) {
-        let elapsed = self.start_time.elapsed();
-        let t = elapsed.as_secs() as f64 + (elapsed.subsec_nanos() as f64 * 1e-9);
+        let dt = if let Some(last) = self.last_time {
+            let elapsed = last.elapsed();
+            elapsed.as_secs() as f64 + (elapsed.subsec_nanos() as f64 * 1e-9)
+        } else {
+            0.
+        };
+        self.last_time = Some(Instant::now());
 
         match (self.primary.update(vrm), self.secondary.update(vrm)) {
             (Ok(_), Ok(_)) => (),
@@ -237,8 +242,7 @@ impl<R: gfx::Resources> App<R> {
         self.pbr.draw(ctx, snowman4_mtx, &self.snowman);
 
         // PHYSICS ===========================================================
-        self.world.step((t - self.prev_t) as f32);
-        self.prev_t = t;
+        self.world.step(dt as f32);
 
         // Draw the snow blocks
         for block in &self.objects {
