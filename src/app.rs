@@ -25,7 +25,7 @@ const DEG: f32 = PI2 / 360.;
 
 pub struct App<R: gfx::Resources> {
     solid: Painter<R, SolidStyle<R>>,
-    objects: Vec<(RigidBodyHandle<f64>, PbrMesh<R>)>,
+    objects: Vec<(RigidBodyHandle<f32>, PbrMesh<R>)>,
     pbr: Painter<R, PbrStyle<R>>,
     grid: Mesh<R, VertC, ()>,
     controller: PbrMesh<R>,
@@ -35,7 +35,7 @@ pub struct App<R: gfx::Resources> {
     primary: ViveController,
     secondary: ViveController,
     prev_t: f64,
-    world: World<f64>,
+    world: World<f32>,
 }
 
 fn grid_lines(count: u32, size: f32) -> MeshSource<VertC, ()> {
@@ -121,7 +121,7 @@ impl<R: gfx::Resources> App<R> {
 
         // Set static world physics
         let mut world = World::new();
-        world.set_gravity(Vector3::new(0.0, -9.81, 0.0));
+        world.set_gravity(Vector3::new(0.0, -0.81, 0.0));
 
         // Floor Plane
         let floor = Plane::new(Vector3::new(0.0, 1.0, 0.0));
@@ -129,10 +129,10 @@ impl<R: gfx::Resources> App<R> {
 
         let snow_block = load::object_directory(factory, "assets/snow-block/")?;
 
-        // TODO: REMOVE
+        // TODO: REMOVE, need to do controllers
         let block = Cuboid::new(Vector3::new(0.625, 0.3125, 0.3125));
         let mut block_rb = RigidBody::new_dynamic(block, 100., 0.1, 0.6);
-        block_rb.set_translation(Translation3::new(0., 4., 0.));
+        block_rb.set_translation(Translation3::new(0., 0., 0.));
         let objs = vec![(world.add_rigid_body(block_rb), snow_block.clone())];
 
         // Construct App
@@ -221,11 +221,12 @@ impl<R: gfx::Resources> App<R> {
         self.pbr.draw(ctx, snowman4_mtx, &self.snowman);
 
         // PHYSICS ===========================================================
-        self.world.step(self.prev_t - t);
+        self.world.step((self.prev_t - t) as f32);
+        self.prev_t = t;
 
         // Draw the snow blocks
         for block in &self.objects {
-            self.pbr.draw(ctx, na::convert(*block.0.borrow().position()), &block.1);
+            self.pbr.draw(ctx, na::convert(vrm.stage * (*block.0.borrow().position())), &self.snow_block);
         }
 
         // Draw controllers
