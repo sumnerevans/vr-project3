@@ -19,7 +19,7 @@ use flight::vr::{primary, secondary, VrMoment, ViveController};
 
 pub const NEAR_PLANE: f64 = 0.1;
 pub const FAR_PLANE: f64 = 1000.;
-pub const BACKGROUND: [f32; 4] = [0.529, 0.808, 0.980, 1.0];
+pub const BACKGROUND: [f32; 4] = [0., 0., 0., 1.0];
 const PI: f32 = ::std::f32::consts::PI;
 const PI2: f32 = 2. * PI;
 const DEG: f32 = PI2 / 360.;
@@ -188,7 +188,7 @@ impl<R: gfx::Resources> App<R> {
 
         // Config PBR lights
         self.pbr.cfg(|s| {
-            s.ambient(BACKGROUND);
+            s.ambient([0.2, 0.2, 0.2, 1.0]);
             s.lights(&[Light {
                            pos: vrm.stage * Point3::new(4., 8., 4.),
                            color: [0.9, 0.8, 0.7, 10.],
@@ -224,24 +224,6 @@ impl<R: gfx::Resources> App<R> {
         // PHYSICS ===========================================================
         self.world.step((t - self.prev_t) as f32);
         self.prev_t = t;
-
-        let mut collisions = Vec::new();
-        self.world.constraints(&mut collisions);
-
-        println!("Collisions: {}", collisions.len());
-        let cw = self.world.ccd_manager();
-
-        for c in collisions.iter() {
-            match *c {
-                Constraint::RBRB(_, _, ref c) => {
-                    println!("RBRB");
-                    println!("{}", c.normal);
-                }
-                _ => {
-                    println!("fail");
-                }
-            }
-        }
 
         // Draw the snow blocks
         for block in &self.objects {
