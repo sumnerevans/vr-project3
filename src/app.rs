@@ -131,10 +131,16 @@ impl<R: gfx::Resources> App<R> {
         let snow_block = load::object_directory(factory, "assets/snow-block/")?;
 
         // TODO: REMOVE, need to do controllers
-        let block = Cuboid::new(Vector3::new(0.121322 / 2, 0.121322 / 2, 0.242645 / 2));
-        let mut block_rb = RigidBody::new_dynamic(block, 100., 0.1, 0.6);
-        block_rb.set_translation(Translation3::new(1., 4., 1.));
-        let objs = vec![(world.add_rigid_body(block_rb), snow_block.clone())];
+        let block = Cuboid::new(Vector3::new(0.3 / 2., 0.3 / 2., 0.6 / 2.));
+        let mut block_rb = RigidBody::new_dynamic(block, 100., 0.0, 0.6);
+        block_rb.set_translation(Translation3::new(1., 0.7, 1.));
+
+        let block = Cuboid::new(Vector3::new(0.3 / 2., 0.3 / 2., 0.3 / 2.));
+        let mut block_rb2 = RigidBody::new_dynamic(block, 100., 0.0, 0.6);
+        block_rb2.set_translation(Translation3::new(1., 1.4, 1.));
+
+        let objs = vec![(world.add_rigid_body(block_rb), snow_block.clone()),];
+                        // (world.add_rigid_body(block_rb2), snow_block.clone())];
 
         // Construct App
         Ok(App {
