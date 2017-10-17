@@ -40,14 +40,11 @@ fn grid_lines(count: u32, size: f32) -> MeshSource<VertC, ()> {
     let mut lines = Vec::new();
     let base_color = [0.2, 0.2, 0.2];
     let light_color = [0.8, 0.8, 0.8];
-    let mid = count / 2;
     let rad = size / 2.;
     let mult = size / count as f32;
     for a in 0..(count + 1) {
         for b in 0..(count + 1) {
-            let line_color = if a == mid && b == mid {
-                [[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]]
-            } else if a % 2 == 0 && b % 2 == 0 {
+            let line_color = if a % 2 == 0 && b % 2 == 0 {
                 [base_color; 3]
             } else {
                 [light_color; 3]
@@ -55,81 +52,31 @@ fn grid_lines(count: u32, size: f32) -> MeshSource<VertC, ()> {
             let a = a as f32 * mult - rad;
             let b = b as f32 * mult - rad;
             lines.push(VertC {
-                pos: [-rad, a, b],
+                pos: [-rad, a + rad, b],
                 color: line_color[0],
             });
             lines.push(VertC {
-                pos: [rad, a, b],
+                pos: [rad, a + rad, b],
                 color: line_color[0],
             });
             lines.push(VertC {
-                pos: [a, -rad, b],
+                pos: [a, 0., b],
                 color: line_color[1],
             });
             lines.push(VertC {
-                pos: [a, rad, b],
+                pos: [a, 2. * rad, b],
                 color: line_color[1],
             });
             lines.push(VertC {
-                pos: [a, b, -rad],
+                pos: [a, b + rad, -rad],
                 color: line_color[2],
             });
             lines.push(VertC {
-                pos: [a, b, rad],
+                pos: [a, b + rad, rad],
                 color: line_color[2],
             });
         }
     }
-
-    let frac = 0.125 * mult;
-    lines.push(VertC {
-        pos: [rad - frac, 0., -frac],
-        color: [1., 0., 0.],
-    });
-    lines.push(VertC {
-        pos: [rad - frac, 0., frac],
-        color: [1., 0., 0.],
-    });
-    lines.push(VertC {
-        pos: [rad - frac, -frac, 0.],
-        color: [1., 0., 0.],
-    });
-    lines.push(VertC {
-        pos: [rad - frac, frac, 0.],
-        color: [1., 0., 0.],
-    });
-    lines.push(VertC {
-        pos: [0., rad - frac, -frac],
-        color: [0., 1., 0.],
-    });
-    lines.push(VertC {
-        pos: [0., rad - frac, frac],
-        color: [0., 1., 0.],
-    });
-    lines.push(VertC {
-        pos: [-frac, rad - frac, 0.],
-        color: [0., 1., 0.],
-    });
-    lines.push(VertC {
-        pos: [frac, rad - frac, 0.],
-        color: [0., 1., 0.],
-    });
-    lines.push(VertC {
-        pos: [-frac, 0., rad - frac],
-        color: [0., 0., 1.],
-    });
-    lines.push(VertC {
-        pos: [frac, 0., rad - frac],
-        color: [0., 0., 1.],
-    });
-    lines.push(VertC {
-        pos: [0., -frac, rad - frac],
-        color: [0., 0., 1.],
-    });
-    lines.push(VertC {
-        pos: [0., frac, rad - frac],
-        color: [0., 0., 1.],
-    });
 
     MeshSource {
         verts: lines,
