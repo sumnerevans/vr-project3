@@ -7,7 +7,7 @@ use nalgebra::{self as na, Rotation3, SimilarityMatrix3, Translation3, Point3, P
 // Physics
 use ncollide::shape::{Plane, Cuboid};
 use nphysics3d::world::World;
-use nphysics3d::object::RigidBody;
+use nphysics3d::object::{RigidBody, RigidBodyHandle};
 
 // Flight
 use flight::{Texture, Light, PbrMesh, Error};
@@ -25,6 +25,7 @@ const DEG: f32 = PI2 / 360.;
 
 pub struct App<R: gfx::Resources> {
     solid: Painter<R, SolidStyle<R>>,
+    objects: Vec<(RigidBodyHandle<f64>, PbrMesh<R>)>,
     pbr: Painter<R, PbrStyle<R>>,
     grid: Mesh<R, VertC, ()>,
     controller: PbrMesh<R>,
@@ -33,6 +34,7 @@ pub struct App<R: gfx::Resources> {
     start_time: Instant,
     primary: ViveController,
     secondary: ViveController,
+    prev_t: f64,
     world: World<f64>,
 }
 
@@ -117,19 +119,33 @@ impl<R: gfx::Resources> App<R> {
         let mut pbr: Painter<_, PbrStyle<_>> = Painter::new(factory)?;
         pbr.setup(factory, Primitive::TriangleList)?;
 
+        // Set static world physics
         let mut world = World::new();
         world.set_gravity(Vector3::new(0.0, -9.81, 0.0));
+
+        // Floor Plane
+        let floor = Plane::new(Vector3::new(0.0, 1.0, 0.0));
+        world.add_rigid_body(RigidBody::new_static(floor, 0.1, 0.6));
+
+        let snow_block = load::object_directory(factory, "assets/snow-block/")?;
+
+        // TODO: REMOVE
+        let block = Cuboid::new(Vector3::new(0.625, 0.3125, 0.3125));
+        let mut block_rb = RigidBody::new_dynamic(block, 100., 0.1, 0.6);
+        block_rb.set_translation(Translation3::new(0., 4., 0.));
+        let objs = vec![(world.add_rigid_body(block_rb), snow_block.clone())];
 
         // Construct App
         Ok(App {
             solid: solid,
             pbr: pbr,
+            objects: objs,
             grid: grid_lines(8, 8.).upload(factory),
             controller: load_simple_object(factory,
                                            "assets/controller.obj",
                                            [0x80, 0x80, 0xFF, 0xFF])?,
             snowman: load::object_directory(factory, "assets/snowman/")?,
-            snow_block: load::object_directory(factory, "assets/snow-block/")?,
+            snow_block: snow_block,
             start_time: Instant::now(),
             primary: ViveController {
                 is: primary(),
@@ -138,12 +154,13 @@ impl<R: gfx::Resources> App<R> {
             },
             secondary: ViveController { is: secondary(), ..Default::default() },
             world: world,
+            prev_t: 0.,
         })
     }
 
     pub fn draw<C: gfx::CommandBuffer<R>>(&mut self, ctx: &mut DrawParams<R, C>, vrm: &VrMoment) {
         let elapsed = self.start_time.elapsed();
-        let t = elapsed.as_secs() as f32 + (elapsed.subsec_nanos() as f32 * 1e-9);
+        let t = elapsed.as_secs() as f64 + (elapsed.subsec_nanos() as f64 * 1e-9);
 
         match (self.primary.update(vrm), self.secondary.update(vrm)) {
             (Ok(_), Ok(_)) => (),
@@ -173,19 +190,19 @@ impl<R: gfx::Resources> App<R> {
             s.ambient(BACKGROUND);
             s.lights(&[Light {
                            pos: vrm.stage * Point3::new(4., 8., 4.),
-                           color: [0.9, 0.8, 0.7, 100.],
+                           color: [0.9, 0.8, 0.7, 10.],
                        },
                        Light {
                            pos: vrm.stage * Point3::new(-4., 8., 4.),
-                           color: [0.9, 0.8, 0.7, 100.],
+                           color: [0.9, 0.8, 0.7, 10.],
                        },
                        Light {
                            pos: vrm.stage * Point3::new(-4., 8., -4.),
-                           color: [0.9, 0.8, 0.7, 100.],
+                           color: [0.9, 0.8, 0.7, 10.],
                        },
                        Light {
                            pos: vrm.stage * Point3::new(4., 8., -4.),
-                           color: [0.9, 0.8, 0.7, 100.],
+                           color: [0.9, 0.8, 0.7, 10.],
                        },
                        cont_light]);
         });
@@ -203,9 +220,13 @@ impl<R: gfx::Resources> App<R> {
         self.pbr.draw(ctx, snowman3_mtx, &self.snowman);
         self.pbr.draw(ctx, snowman4_mtx, &self.snowman);
 
+        // PHYSICS ===========================================================
+        self.world.step(self.prev_t - t);
+
         // Draw the snow blocks
-        let snow_block_mtx = vrm.stage;
-        self.pbr.draw(ctx, snow_block_mtx, &self.snow_block);
+        for block in &self.objects {
+            self.pbr.draw(ctx, na::convert(*block.0.borrow().position()), &block.1);
+        }
 
         // Draw controllers
         for cont in vrm.controllers() {
