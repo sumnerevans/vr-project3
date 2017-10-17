@@ -1,22 +1,28 @@
-use std::path::Path;
-use std::time::Instant;
+// Flight
+
+use flight::{Error, Light, PbrMesh, Texture};
+use flight::draw::{DrawParams, Painter, PbrMaterial, PbrStyle, SolidStyle};
+use flight::load;
+use flight::mesh::*;
+use flight::vr::{ViveController, VrMoment, primary, secondary};
+
+// GFX
 use gfx::{self, Factory};
 use gfx::traits::FactoryExt;
-use nalgebra::{self as na, Rotation3, SimilarityMatrix3, Translation3, Point3, Point2, Vector3};
+
+// nalgebra
+use nalgebra::{Point2, Point3, Rotation3, SimilarityMatrix3, Translation3, Vector3, self as na};
 
 // Physics
-use ncollide::shape::{Plane, Cuboid};
-use nphysics3d::world::World;
-use nphysics3d::object::{RigidBody, RigidBodyHandle};
+use ncollide::shape::{Cuboid, Plane};
 use nphysics3d::detection::constraint::Constraint;
+use nphysics3d::object::{RigidBody, RigidBodyHandle};
+use nphysics3d::world::World;
 
-// Flight
-use flight::{Texture, Light, PbrMesh, Error};
-use flight::mesh::*;
-use flight::load;
-use flight::draw::{DrawParams, Painter, SolidStyle, PbrStyle, PbrMaterial};
-use flight::vr::{primary, secondary, VrMoment, ViveController};
+use std::path::Path;
+use std::time::Instant;
 
+// Constants
 pub const NEAR_PLANE: f64 = 0.1;
 pub const FAR_PLANE: f64 = 1000.;
 pub const BACKGROUND: [f32; 4] = [0., 0., 0., 1.0];
@@ -39,12 +45,13 @@ pub struct App<R: gfx::Resources> {
     world: World<f32>,
 }
 
-fn grid_lines(count: u32, size: f32) -> MeshSource<VertC, ()> {
+fn grid_lines(count: i32, size: Vector3<f32>) -> MeshSource<VertC, ()> {
     let mut lines = Vec::new();
-    let base_color = [0.2, 0.2, 0.2];
-    let light_color = [0.8, 0.8, 0.8];
+    let base_color = [1., 1., 1.];
+    let light_color = [0.2, 0.2, 0.5];
     let rad = size / 2.;
     let mult = size / count as f32;
+
     for a in 0..(count + 1) {
         for b in 0..(count + 1) {
             let line_color = if a % 2 == 0 && b % 2 == 0 {
@@ -55,27 +62,27 @@ fn grid_lines(count: u32, size: f32) -> MeshSource<VertC, ()> {
             let a = a as f32 * mult - rad;
             let b = b as f32 * mult - rad;
             lines.push(VertC {
-                pos: [-rad, a + rad, b],
+                pos: [-rad.x, a.y, b.z],
                 color: line_color[0],
             });
             lines.push(VertC {
-                pos: [rad, a + rad, b],
+                pos: [rad.x, a.y, b.z],
                 color: line_color[0],
             });
             lines.push(VertC {
-                pos: [a, 0., b],
+                pos: [a.x, -rad.y, b.z],
                 color: line_color[1],
             });
             lines.push(VertC {
-                pos: [a, 2. * rad, b],
+                pos: [a.x, rad.y, b.z],
                 color: line_color[1],
             });
             lines.push(VertC {
-                pos: [a, b + rad, -rad],
+                pos: [a.x, b.y, -rad.z],
                 color: line_color[2],
             });
             lines.push(VertC {
-                pos: [a, b + rad, rad],
+                pos: [a.x, b.y, rad.z],
                 color: line_color[2],
             });
         }
@@ -132,22 +139,24 @@ impl<R: gfx::Resources> App<R> {
 
         // TODO: REMOVE, need to do controllers
         let block = Cuboid::new(Vector3::new(0.3 / 2., 0.3 / 2., 0.6 / 2.));
-        let mut block_rb = RigidBody::new_dynamic(block, 100., 0.0, 0.6);
-        block_rb.set_translation(Translation3::new(1., 0.7, 1.));
+        let mut block_rb = RigidBody::new_dynamic(block, 100., 0.0, 0.8);
+        block_rb.set_margin(0.);
+        block_rb.set_translation(Translation3::new(1.5, 0.7, 1.5));
 
         let block = Cuboid::new(Vector3::new(0.3 / 2., 0.3 / 2., 0.3 / 2.));
-        let mut block_rb2 = RigidBody::new_dynamic(block, 100., 0.0, 0.6);
-        block_rb2.set_translation(Translation3::new(1., 1.4, 1.));
+        let mut block_rb2 = RigidBody::new_dynamic(block, 100., 0.0, 0.8);
+        block_rb2.set_margin(0.);
+        block_rb2.set_translation(Translation3::new(1.5, 1.4, 1.5));
 
-        let objs = vec![(world.add_rigid_body(block_rb), snow_block.clone()),];
-                        // (world.add_rigid_body(block_rb2), snow_block.clone())];
+        let objs = vec![(world.add_rigid_body(block_rb), snow_block.clone()),
+                        (world.add_rigid_body(block_rb2), snow_block.clone())];
 
         // Construct App
         Ok(App {
             solid: solid,
             pbr: pbr,
             objects: objs,
-            grid: grid_lines(8, 8.).upload(factory),
+            grid: grid_lines(8, Vector3::new(8., 8., 8.)).upload(factory),
             controller: load_simple_object(factory,
                                            "assets/controller.obj",
                                            [0x80, 0x80, 0xFF, 0xFF])?,
@@ -215,7 +224,7 @@ impl<R: gfx::Resources> App<R> {
         });
 
         // Draw grid
-        self.solid.draw(ctx, vrm.stage, &self.grid);
+        self.solid.draw(ctx, vrm.stage * Translation3::new(0., 4., 0.), &self.grid);
 
         // Draw snowmen
         let snowman1_mtx = vrm.stage * Translation3::new(2., 0., 2.);

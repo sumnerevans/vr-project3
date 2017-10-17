@@ -11,6 +11,9 @@ Cargo.lock
 /target/
 **/*.rs.bk
 
+# Rust Formatting
+*.rustfmt
+
 # Substance Painter
 *.painter_lock
 
