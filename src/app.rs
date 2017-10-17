@@ -132,7 +132,7 @@ impl<R: gfx::Resources> App<R> {
         // TODO: REMOVE, need to do controllers
         let block = Cuboid::new(Vector3::new(0.625, 0.3125, 0.3125));
         let mut block_rb = RigidBody::new_dynamic(block, 100., 0.1, 0.6);
-        block_rb.set_translation(Translation3::new(0., 0., 0.));
+        block_rb.set_translation(Translation3::new(0., 4., 0.));
         let objs = vec![(world.add_rigid_body(block_rb), snow_block.clone())];
 
         // Construct App
