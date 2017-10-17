@@ -13,3 +13,6 @@ Cargo.lock
 
 # Substance Painter
 *.painter_lock
+
+# Blender
+*.blend1
