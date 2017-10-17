@@ -4,7 +4,7 @@ use flight::{Error, Light, PbrMesh, Texture};
 use flight::draw::{DrawParams, Painter, PbrMaterial, PbrStyle, SolidStyle};
 use flight::load;
 use flight::mesh::*;
-use flight::vr::{ViveController, VrMoment, primary, secondary};
+use flight::vr::{Trackable, ViveController, VrMoment, primary, secondary};
 
 // GFX
 use gfx::{self, Factory};
@@ -14,10 +14,14 @@ use gfx::traits::FactoryExt;
 use nalgebra::{Point2, Point3, Rotation3, SimilarityMatrix3, Translation3, Vector3, self as na};
 
 // Physics
+use nalgebra::geometry::Isometry3;
+use ncollide::query::Ray;
 use ncollide::shape::{Cuboid, Plane};
+use ncollide::world::CollisionGroups;
 use nphysics3d::detection::constraint::Constraint;
 use nphysics3d::object::{RigidBody, RigidBodyHandle};
 use nphysics3d::world::World;
+use num_traits::bounds::Bounded;
 
 use std::path::Path;
 use std::time::Instant;
@@ -26,6 +30,7 @@ use std::time::Instant;
 pub const NEAR_PLANE: f64 = 0.1;
 pub const FAR_PLANE: f64 = 1000.;
 pub const BACKGROUND: [f32; 4] = [0., 0., 0., 1.0];
+pub const TRIGGER_THRESHOLD: f64 = 0.5;
 const PI: f32 = ::std::f32::consts::PI;
 const PI2: f32 = 2. * PI;
 const DEG: f32 = PI2 / 360.;
@@ -42,6 +47,28 @@ pub struct App<R: gfx::Resources> {
     primary: ViveController,
     secondary: ViveController,
     world: World<f32>,
+    red_ray: Mesh<R, VertC, ()>,
+    blue_ray: Mesh<R, VertC, ()>,
+}
+
+fn make_ray(color: [f32; 3]) -> MeshSource<VertC, ()> {
+    let mut ray = Vec::new();
+
+    ray.push(VertC {
+        pos: [0., 0., 0.],
+        color: color,
+    });
+    ray.push(VertC {
+        pos: [0., 0., -4.],
+        color: color,
+    });
+
+    MeshSource {
+        verts: ray,
+        inds: Indexing::All,
+        prim: Primitive::LineList,
+        mat: (),
+    }
 }
 
 fn grid_lines(count: i32, size: Vector3<f32>) -> MeshSource<VertC, ()> {
@@ -137,20 +164,7 @@ impl<R: gfx::Resources> App<R> {
         world.add_rigid_body(floor_rb);
 
         let snow_block = load::object_directory(factory, "assets/snow-block/")?;
-
-        // TODO: REMOVE, need to do controllers
-        let block = Cuboid::new(Vector3::new(0.15, 0.15, 0.3));
-        let mut block_rb = RigidBody::new_dynamic(block, 100., 0.0, 0.8);
-        block_rb.set_margin(0.00001);
-        block_rb.set_translation(Translation3::new(1.5, 1.0, 1.5));
-
-        let block = Cuboid::new(Vector3::new(0.15, 0.15, 0.3));
-        let mut block_rb2 = RigidBody::new_dynamic(block, 100., 0.0, 0.8);
-        block_rb2.set_margin(0.00001);
-        block_rb2.set_translation(Translation3::new(1.5, 2.0, 1.5));
-
-        let objs = vec![(world.add_rigid_body(block_rb), snow_block.clone()),
-                        (world.add_rigid_body(block_rb2), snow_block.clone())];
+        let objs = Vec::new();
 
         // Construct App
         Ok(App {
@@ -171,10 +185,13 @@ impl<R: gfx::Resources> App<R> {
             },
             secondary: ViveController { is: secondary(), ..Default::default() },
             world: world,
+            red_ray: make_ray([1., 0., 0.]).upload(factory),
+            blue_ray: make_ray([0., 0., 1.]).upload(factory),
         })
     }
 
-    pub fn draw<C: gfx::CommandBuffer<R>>(&mut self, ctx: &mut DrawParams<R, C>, vrm: &VrMoment) {
+    fn handle_physics(&mut self) {
+        // Calculate dt
         let dt = if let Some(last) = self.last_time {
             let elapsed = last.elapsed();
             elapsed.as_secs() as f64 + (elapsed.subsec_nanos() as f64 * 1e-9)
@@ -183,10 +200,17 @@ impl<R: gfx::Resources> App<R> {
         };
         self.last_time = Some(Instant::now());
 
+        // Step the physics world
+        self.world.step(dt.min(0.1) as f32);
+    }
+
+    pub fn draw<C: gfx::CommandBuffer<R>>(&mut self, ctx: &mut DrawParams<R, C>, vrm: &VrMoment) {
         match (self.primary.update(vrm), self.secondary.update(vrm)) {
             (Ok(_), Ok(_)) => (),
             _ => warn!("A not vive-like controller is connected"),
         }
+
+        self.handle_physics();
 
         // Clear targets
         ctx.encoder.clear_depth(&ctx.depth, FAR_PLANE as f32);
@@ -228,21 +252,14 @@ impl<R: gfx::Resources> App<R> {
                        cont_light]);
         });
 
-        // Draw grid
-        self.solid.draw(ctx, vrm.stage * Translation3::new(0., 4., 0.), &self.grid);
-
         // Draw snowmen
-        let snowman1_mtx = vrm.stage * Translation3::new(2., 0., 2.);
-        let snowman2_mtx = vrm.stage * Translation3::new(-2., 0., 2.);
-        let snowman3_mtx = vrm.stage * Translation3::new(-2., 0., -2.);
-        let snowman4_mtx = vrm.stage * Translation3::new(2., 0., -2.);
-        self.pbr.draw(ctx, snowman1_mtx, &self.snowman);
-        self.pbr.draw(ctx, snowman2_mtx, &self.snowman);
-        self.pbr.draw(ctx, snowman3_mtx, &self.snowman);
-        self.pbr.draw(ctx, snowman4_mtx, &self.snowman);
-
-        // PHYSICS ===========================================================
-        self.world.step(dt as f32);
+        let snowmen_locations = vec![Translation3::new(2., 0., 2.),
+                                     Translation3::new(-2., 0., 2.),
+                                     Translation3::new(-2., 0., -2.),
+                                     Translation3::new(2., 0., -2.)];
+        for loc in snowmen_locations {
+            self.pbr.draw(ctx, vrm.stage * loc, &self.snowman);
+        }
 
         // Draw the snow blocks
         for block in &self.objects {
@@ -250,9 +267,56 @@ impl<R: gfx::Resources> App<R> {
             self.pbr.draw(ctx, block_pos, &self.snow_block);
         }
 
+        // Draw grid
+        self.solid.draw(ctx, vrm.stage * Translation3::new(0., 4., 0.), &self.grid);
+
         // Draw controllers
-        for cont in vrm.controllers() {
-            self.pbr.draw(ctx, na::convert(cont.pose), &self.controller);
+        let mut draw_controller = |controller: &ViveController| {
+            if !controller.connected {
+                return;
+            }
+            self.pbr.draw(ctx, na::convert(controller.pose), &self.controller);
+            let ray = if controller.trigger > TRIGGER_THRESHOLD {
+                &self.red_ray
+            } else {
+                &self.blue_ray
+            };
+            self.solid.draw(ctx, na::convert(controller.pose), ray);
+        };
+        draw_controller(&self.primary);
+        draw_controller(&self.secondary);
+
+        // Handle Controller Events
+        if !self.primary.connected || !self.secondary.connected {
+            warn!("Controller(s) Disconnected");
+        } else {
+            let mut pointing_at = |controller: &ViveController| {
+                let ray = Ray::new(controller.origin(), controller.pointing());
+                let all_groups = &CollisionGroups::new();
+
+                // Track minimum value
+                let mut mintoi = Bounded::max_value();
+                let mut closest_body = None;
+                for (b, inter) in self.world
+                    .collision_world()
+                    .interferences_with_ray(&ray, all_groups) {
+                    if inter.toi < mintoi {
+                        if let &RigidBody(ref rb) = &b.data {
+                            mintoi = inter.toi;
+                            closest_body = Some(rb.clone());
+                        }
+                    }
+                }
+
+                closest_body
+            };
+            let primary_pressed = self.primary.trigger > TRIGGER_THRESHOLD;
+            let secondary_pressed = self.secondary.trigger > TRIGGER_THRESHOLD;
+            if primary_pressed && secondary_pressed {
+                println!("HERE");
+                // Check the ray intersections
+            }
         }
+
     }
 }

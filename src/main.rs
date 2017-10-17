@@ -8,6 +8,7 @@ extern crate gfx;
 extern crate nalgebra;
 extern crate ncollide;
 extern crate nphysics3d;
+extern crate num_traits;
 extern crate glutin;
 extern crate gfx_device_gl;
 extern crate gfx_window_glutin;
