@@ -8,6 +8,7 @@ use nalgebra::{self as na, Rotation3, SimilarityMatrix3, Translation3, Point3, P
 use ncollide::shape::{Plane, Cuboid};
 use nphysics3d::world::World;
 use nphysics3d::object::{RigidBody, RigidBodyHandle};
+use nphysics3d::detection::constraint::Constraint;
 
 // Flight
 use flight::{Texture, Light, PbrMesh, Error};
@@ -121,7 +122,7 @@ impl<R: gfx::Resources> App<R> {
 
         // Set static world physics
         let mut world = World::new();
-        world.set_gravity(Vector3::new(0.0, -0.81, 0.0));
+        world.set_gravity(Vector3::new(0.0, -9.81, 0.0));
 
         // Floor Plane
         let floor = Plane::new(Vector3::new(0.0, 1.0, 0.0));
@@ -130,9 +131,9 @@ impl<R: gfx::Resources> App<R> {
         let snow_block = load::object_directory(factory, "assets/snow-block/")?;
 
         // TODO: REMOVE, need to do controllers
-        let block = Cuboid::new(Vector3::new(0.625, 0.3125, 0.3125));
+        let block = Cuboid::new(Vector3::new(0.121322, 0.121322, 0.242645));
         let mut block_rb = RigidBody::new_dynamic(block, 100., 0.1, 0.6);
-        block_rb.set_translation(Translation3::new(0., 4., 0.));
+        block_rb.set_translation(Translation3::new(1.5, 4., 1.5));
         let objs = vec![(world.add_rigid_body(block_rb), snow_block.clone())];
 
         // Construct App
@@ -221,12 +222,32 @@ impl<R: gfx::Resources> App<R> {
         self.pbr.draw(ctx, snowman4_mtx, &self.snowman);
 
         // PHYSICS ===========================================================
-        self.world.step((self.prev_t - t) as f32);
+        self.world.step((t - self.prev_t) as f32);
         self.prev_t = t;
+
+        let mut collisions = Vec::new();
+        self.world.constraints(&mut collisions);
+
+        println!("Collisions: {}", collisions.len());
+        let cw = self.world.ccd_manager();
+
+        for c in collisions.iter() {
+            match *c {
+                Constraint::RBRB(_, _, ref c) => {
+                    println!("RBRB");
+                    println!("{}", c.normal);
+                }
+                _ => {
+                    println!("fail");
+                }
+            }
+        }
 
         // Draw the snow blocks
         for block in &self.objects {
-            self.pbr.draw(ctx, na::convert(vrm.stage * (*block.0.borrow().position())), &self.snow_block);
+            self.pbr.draw(ctx,
+                          na::convert(vrm.stage * (*block.0.borrow().position())),
+                          &self.snow_block);
         }
 
         // Draw controllers
