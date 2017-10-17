@@ -253,7 +253,7 @@ impl<R: gfx::Resources> App<R> {
         self.pbr.draw(ctx, snowman2_mtx, &self.snowman);
 
         // Draw the snow blocks
-        let snow_block_mtx = vrm.stage * Translation3::new(6., 0., 3.);
+        let snow_block_mtx = vrm.stage;
         self.pbr.draw(ctx, snow_block_mtx, &self.snow_block);
 
         // Draw controllers
