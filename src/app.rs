@@ -194,10 +194,14 @@ impl<R: gfx::Resources> App<R> {
         self.solid.draw(ctx, vrm.stage, &self.grid);
 
         // Draw snowmen
-        let snowman1_mtx = vrm.stage * Translation3::new(6., 0., 6.);
-        let snowman2_mtx = vrm.stage * Translation3::new(3., 0., 6.);
+        let snowman1_mtx = vrm.stage * Translation3::new(2., 0., 2.);
+        let snowman2_mtx = vrm.stage * Translation3::new(-2., 0., 2.);
+        let snowman3_mtx = vrm.stage * Translation3::new(-2., 0., -2.);
+        let snowman4_mtx = vrm.stage * Translation3::new(2., 0., -2.);
         self.pbr.draw(ctx, snowman1_mtx, &self.snowman);
         self.pbr.draw(ctx, snowman2_mtx, &self.snowman);
+        self.pbr.draw(ctx, snowman3_mtx, &self.snowman);
+        self.pbr.draw(ctx, snowman4_mtx, &self.snowman);
 
         // Draw the snow blocks
         let snow_block_mtx = vrm.stage;
