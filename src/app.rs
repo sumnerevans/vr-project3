@@ -4,11 +4,17 @@ use gfx::{self, Factory};
 use gfx::traits::FactoryExt;
 use nalgebra::{self as na, Rotation3, SimilarityMatrix3, Translation3, Point3, Point2, Vector3};
 
-use lib::{Texture, Light, PbrMesh, Error};
-use lib::mesh::*;
-use lib::load;
-use lib::draw::{DrawParams, Painter, SolidStyle, PbrStyle, PbrMaterial};
-use lib::vr::{primary, secondary, VrMoment, ViveController};
+// Physics
+use ncollide::shape::{Plane, Cuboid};
+use nphysics3d::world::World;
+use nphysics3d::object::RigidBody;
+
+// Flight
+use flight::{Texture, Light, PbrMesh, Error};
+use flight::mesh::*;
+use flight::load;
+use flight::draw::{DrawParams, Painter, SolidStyle, PbrStyle, PbrMaterial};
+use flight::vr::{primary, secondary, VrMoment, ViveController};
 
 pub const NEAR_PLANE: f64 = 0.1;
 pub const FAR_PLANE: f64 = 1000.;
@@ -21,13 +27,13 @@ pub struct App<R: gfx::Resources> {
     solid: Painter<R, SolidStyle<R>>,
     pbr: Painter<R, PbrStyle<R>>,
     grid: Mesh<R, VertC, ()>,
-    controller_grid: Mesh<R, VertC, ()>,
     controller: PbrMesh<R>,
-    snowman: PbrMesh<R>,
     snow_block: PbrMesh<R>,
+    snowman: PbrMesh<R>,
     start_time: Instant,
     primary: ViveController,
     secondary: ViveController,
+    world: World<f64>,
 }
 
 fn grid_lines(count: u32, size: f32) -> MeshSource<VertC, ()> {
@@ -133,10 +139,10 @@ fn grid_lines(count: u32, size: f32) -> MeshSource<VertC, ()> {
     }
 }
 
-fn load_my_simple_object<P, R, F>(f: &mut F,
-                                  path: P,
-                                  albedo: [u8; 4])
-                                  -> Result<Mesh<R, VertNTT, PbrMaterial<R>>, Error>
+fn load_simple_object<P, R, F>(f: &mut F,
+                               path: P,
+                               albedo: [u8; 4])
+                               -> Result<Mesh<R, VertNTT, PbrMaterial<R>>, Error>
     where P: AsRef<Path>,
           R: gfx::Resources,
           F: gfx::Factory<R>
@@ -164,15 +170,17 @@ impl<R: gfx::Resources> App<R> {
         let mut pbr: Painter<_, PbrStyle<_>> = Painter::new(factory)?;
         pbr.setup(factory, Primitive::TriangleList)?;
 
+        let mut world = World::new();
+        world.set_gravity(Vector3::new(0.0, -9.81, 0.0));
+
         // Construct App
         Ok(App {
             solid: solid,
             pbr: pbr,
             grid: grid_lines(8, 8.).upload(factory),
-            controller_grid: grid_lines(2, 0.2).upload(factory),
-            controller: load_my_simple_object(factory,
-                                              "assets/controller.obj",
-                                              [0x80, 0x80, 0xFF, 0xFF])?,
+            controller: load_simple_object(factory,
+                                           "assets/controller.obj",
+                                           [0x80, 0x80, 0xFF, 0xFF])?,
             snowman: load::object_directory(factory, "assets/snowman/")?,
             snow_block: load::object_directory(factory, "assets/snow-block/")?,
             start_time: Instant::now(),
@@ -182,6 +190,7 @@ impl<R: gfx::Resources> App<R> {
                 ..Default::default()
             },
             secondary: ViveController { is: secondary(), ..Default::default() },
+            world: world,
         })
     }
 
@@ -237,17 +246,18 @@ impl<R: gfx::Resources> App<R> {
         // Draw grid
         self.solid.draw(ctx, vrm.stage, &self.grid);
 
-        // Draw snowman
+        // Draw snowmen
         let snowman1_mtx = vrm.stage * Translation3::new(6., 0., 6.);
         let snowman2_mtx = vrm.stage * Translation3::new(3., 0., 6.);
-        let snowman3_mtx = vrm.stage * Translation3::new(6., 0., 3.);
         self.pbr.draw(ctx, snowman1_mtx, &self.snowman);
         self.pbr.draw(ctx, snowman2_mtx, &self.snowman);
-        self.pbr.draw(ctx, snowman3_mtx, &self.snow_block);
+
+        // Draw the snow blocks
+        let snow_block_mtx = vrm.stage * Translation3::new(6., 0., 3.);
+        self.pbr.draw(ctx, snow_block_mtx, &self.snow_block);
 
         // Draw controllers
         for cont in vrm.controllers() {
-            self.solid.draw(ctx, na::convert(cont.pose), &self.controller_grid);
             self.pbr.draw(ctx, na::convert(cont.pose), &self.controller);
         }
     }

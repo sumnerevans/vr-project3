@@ -1,11 +1,13 @@
 // Crates
 #[macro_use]
 extern crate log;
-extern crate clap;
 extern crate simplelog;
-extern crate flight as lib;
+extern crate clap;
+extern crate flight;
 extern crate gfx;
 extern crate nalgebra;
+extern crate ncollide;
+extern crate nphysics3d;
 extern crate glutin;
 extern crate gfx_device_gl;
 extern crate gfx_window_glutin;
@@ -18,10 +20,10 @@ use gfx_device_gl::{NewTexture};
 use gfx::memory::Typed;
 use glutin::GlContext;
 
-mod app;
+use flight::draw;
+use flight::vr::*;
 
-use lib::draw;
-use lib::vr::*;
+mod app;
 
 fn main() {
     // Logging setup
@@ -30,9 +32,9 @@ fn main() {
     // Command line arguments
     let matches = App::new("VR")
         .arg(Arg::with_name("mock")
-            .short("m")
-            .long("mock")
-            .help("Use mock VR API"))
+             .short("m")
+             .long("mock")
+             .help("Use mock VR API"))
         .get_matches();
     let mock = matches.is_present("mock");
 
