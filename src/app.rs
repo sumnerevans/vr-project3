@@ -166,21 +166,6 @@ impl<R: gfx::Resources> App<R> {
         let snow_block = load::object_directory(factory, "assets/snow-block/")?;
         let objs = Vec::new();
 
-        // TODO: REMOVE, need to do controllers
-        // let block = Cuboid::new(Vector3::new(0.15, 0.15, 0.3));
-        // let mut block_rb = RigidBody::new_dynamic(block, 100., 0.0, 0.8);
-        // block_rb.set_margin(0.00001);
-        // block_rb.set_translation(Translation3::new(1.5, 1.0, 1.5));
-
-        // let block = Cuboid::new(Vector3::new(0.15, 0.15, 0.3));
-        // let mut block_rb2 = RigidBody::new_dynamic(block, 100., 0.0, 0.8);
-        // block_rb2.set_margin(0.00001);
-        // block_rb2.set_translation(Translation3::new(1.5, 2.0, 1.5));
-
-        // let objs = vec![(world.add_rigid_body(block_rb), snow_block.clone()),
-        //                 (world.add_rigid_body(block_rb2), snow_block.clone())];
-        // TODO: END REMOVE
-
         // Construct App
         Ok(App {
             solid: solid,
@@ -345,7 +330,7 @@ impl<R: gfx::Resources> App<R> {
             let lerp_rot = self.primary.pose.rotation.slerp(&self.secondary.pose.rotation, 0.5);
             let mid_controller = Isometry3::from_parts(lerp_trans, lerp_rot);
             if let Some(ref mut g) = self.grabbed {
-                g.append_transformation(&mid_controller);
+                g.set_transformation(mid_controller);
             } else {
                 match (primary_point_at.0, secondary_point_at.0) {
                     (None, None) => {
@@ -373,7 +358,7 @@ impl<R: gfx::Resources> App<R> {
             }
         } else if !primary_pressed && !secondary_pressed {
             if let Some(g) = self.grabbed.take() {
-                self.world.add_rigid_body(g);
+                self.objects.push((self.world.add_rigid_body(g), self.snow_block.clone()));
             }
         }
 
