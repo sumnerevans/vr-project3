@@ -329,6 +329,15 @@ impl<R: gfx::Resources> App<R> {
             let lerp_rot = self.primary.pose.rotation.slerp(&self.secondary.pose.rotation, 0.5);
             let xz_rot = UnitQuaternion::from_axis_angle(&Vector3::y_axis(), PI / 2.);
             let mid_controller = stage_inv * Isometry3::from_parts(lerp_trans, lerp_rot) * xz_rot;
+
+            let create_block = || {
+                let block = Cuboid::new(Vector3::new(0.15, 0.15, 0.3));
+                let mut block = RigidBody::new_dynamic(block, 100., 0.0, 0.8);
+                block.set_margin(0.00001);
+                block.set_transformation(mid_controller);
+                Some(block)
+            };
+
             if let Some(ref mut g) = self.grabbed {
                 g.set_transformation(mid_controller);
             } else {
@@ -339,18 +348,14 @@ impl<R: gfx::Resources> App<R> {
                         let down = Vector3::new(0., -1., 0.);
                         if self.primary.pointing().dot(&down).acos() < PI / 4. &&
                            self.primary.pointing().dot(&down).acos() < PI / 4. {
-                            let block = Cuboid::new(Vector3::new(0.15, 0.15, 0.3));
-                            let mut block = RigidBody::new_dynamic(block, 100., 0.0, 0.8);
-                            block.set_margin(0.00001);
-                            block.set_transformation(mid_controller);
-                            self.grabbed = Some(block);
+                            self.grabbed = create_block();
                         }
                     }
                     (Some(p), Some(s)) => {
                         if Rc::ptr_eq(&p, &s) {
                             self.world.remove_rigid_body(&p);
                             self.objects.retain(|o| !Rc::ptr_eq(&p, &o.0));
-                            self.grabbed = Some(p.borrow().clone());
+                            self.grabbed = create_block();
                         }
                     }
                     _ => {}
@@ -358,7 +363,6 @@ impl<R: gfx::Resources> App<R> {
             }
         } else if !primary_pressed && !secondary_pressed {
             if let Some(g) = self.grabbed.take() {
-                println!("HERE");
                 self.objects.push((self.world.add_rigid_body(g), self.snow_block.clone()));
             }
         }
