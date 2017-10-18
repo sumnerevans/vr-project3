@@ -265,7 +265,7 @@ impl<R: gfx::Resources> App<R> {
         // Draw the snow blocks
         for block in &self.objects {
             let block_pos = na::convert(vrm.stage * (*block.0.borrow().position()));
-            self.pbr.draw(ctx, block_pos, &self.snow_block);
+            self.pbr.draw(ctx, block_pos, &block.1);
         }
 
         // Draw the currently grabbed block
@@ -287,13 +287,12 @@ impl<R: gfx::Resources> App<R> {
         let pointing_at = |controller: &ViveController, world: &World<f32>| {
             let ray = Ray::new(stage_inv * controller.origin(),
                                stage_inv * controller.pointing());
-            let all_groups = &CollisionGroups::new();
 
             // Track minimum value
             let mut mintoi = Bounded::max_value();
             let mut closest_body = None;
             for (b, inter) in world.collision_world()
-                .interferences_with_ray(&ray, all_groups) {
+                .interferences_with_ray(&ray, &CollisionGroups::new()) {
                 if inter.toi < mintoi {
                     if let &WorldObject::RigidBody(ref rb) = &b.data {
                         mintoi = inter.toi;
@@ -359,6 +358,7 @@ impl<R: gfx::Resources> App<R> {
             }
         } else if !primary_pressed && !secondary_pressed {
             if let Some(g) = self.grabbed.take() {
+                println!("HERE");
                 self.objects.push((self.world.add_rigid_body(g), self.snow_block.clone()));
             }
         }
