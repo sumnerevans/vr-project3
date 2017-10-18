@@ -19,11 +19,14 @@ use ncollide::query::Ray;
 use ncollide::shape::{Cuboid, Plane};
 use ncollide::world::CollisionGroups;
 use nphysics3d::detection::constraint::Constraint;
-use nphysics3d::object::{RigidBody, RigidBodyHandle, WorldObject};
+use nphysics3d::object::{RigidBody, RigidBodyCollisionGroups, RigidBodyHandle, WorldObject};
 use nphysics3d::world::World;
 use num_traits::bounds::Bounded;
 
+// Standard Library
+use std::f32;
 use std::path::Path;
+use std::rc::Rc;
 use std::time::Instant;
 
 // Constants
@@ -34,6 +37,20 @@ pub const TRIGGER_THRESHOLD: f64 = 0.5;
 const PI: f32 = ::std::f32::consts::PI;
 const PI2: f32 = 2. * PI;
 const DEG: f32 = PI2 / 360.;
+
+enum GrabbedBody {
+    New(Isometry3<f32>),
+    Relocating(RigidBodyHandle<f32>),
+}
+
+impl GrabbedBody {
+    pub fn set_position(&mut self, isometry: Isometry3<f32>) {
+        match *self {
+            GrabbedBody::New(ref mut pos) => *pos = isometry,
+            GrabbedBody::Relocating(ref han) => han.borrow_mut().set_transformation(isometry),
+        }
+    }
+}
 
 pub struct App<R: gfx::Resources> {
     solid: Painter<R, SolidStyle<R>>,
@@ -49,6 +66,7 @@ pub struct App<R: gfx::Resources> {
     world: World<f32>,
     red_ray: Mesh<R, VertC, ()>,
     blue_ray: Mesh<R, VertC, ()>,
+    grabbed: Option<GrabbedBody>,
 }
 
 fn make_ray(color: [f32; 3]) -> MeshSource<VertC, ()> {
@@ -154,13 +172,28 @@ impl<R: gfx::Resources> App<R> {
         world.set_gravity(Vector3::new(0.0, -9.81, 0.0));
 
         // Floor Plane
-        let floor = Plane::new(Vector3::new(0.0, 1.0, 0.0));
+        let floor = Plane::new(Vector3::new(0., 1., 0.));
         let mut floor_rb = RigidBody::new_static(floor, 0.1, 0.6);
         floor_rb.set_margin(0.00001);
         world.add_rigid_body(floor_rb);
 
         let snow_block = load::object_directory(factory, "assets/snow-block/")?;
-        let objs = Vec::new();
+        // let objs = Vec::new();
+
+        // TODO: REMOVE, need to do controllers
+        let block = Cuboid::new(Vector3::new(0.15, 0.15, 0.3));
+        let mut block_rb = RigidBody::new_dynamic(block, 100., 0.0, 0.8);
+        block_rb.set_margin(0.00001);
+        block_rb.set_translation(Translation3::new(1.5, 1.0, 1.5));
+
+        let block = Cuboid::new(Vector3::new(0.15, 0.15, 0.3));
+        let mut block_rb2 = RigidBody::new_dynamic(block, 100., 0.0, 0.8);
+        block_rb2.set_margin(0.00001);
+        block_rb2.set_translation(Translation3::new(1.5, 2.0, 1.5));
+
+        let objs = vec![(world.add_rigid_body(block_rb), snow_block.clone()),
+                        (world.add_rigid_body(block_rb2), snow_block.clone())];
+        // TODO: END REMOVE
 
         // Construct App
         Ok(App {
@@ -183,6 +216,7 @@ impl<R: gfx::Resources> App<R> {
             world: world,
             red_ray: make_ray([1., 0., 0.]).upload(factory),
             blue_ray: make_ray([0., 0., 1.]).upload(factory),
+            grabbed: None,
         })
     }
 
@@ -271,6 +305,82 @@ impl<R: gfx::Resources> App<R> {
             warn!("Controller(s) Disconnected");
         }
 
+        // Handle Controller Events
+        let stage_inv = vrm.stage.try_inverse().unwrap();
+        let pointing_at = |controller: &ViveController, world: &World<f32>| {
+            let ray = Ray::new(stage_inv * controller.origin(),
+                               stage_inv * controller.pointing());
+            let all_groups = &CollisionGroups::new();
+
+            // Track minimum value
+            let mut mintoi = Bounded::max_value();
+            let mut closest_body = None;
+            for (b, inter) in world.collision_world()
+                .interferences_with_ray(&ray, all_groups) {
+                if inter.toi < mintoi {
+                    if let &WorldObject::RigidBody(ref rb) = &b.data {
+                        mintoi = inter.toi;
+                        closest_body = Some(rb.clone());
+                    }
+                }
+            }
+
+            (closest_body, Some(mintoi))
+        };
+
+        let primary_pressed = self.primary.trigger > TRIGGER_THRESHOLD;
+        let secondary_pressed = self.secondary.trigger > TRIGGER_THRESHOLD;
+
+        let primary_point_at = if self.primary.connected {
+            pointing_at(&self.primary, &self.world)
+        } else {
+            (None, None)
+        };
+
+        let secondary_point_at = if self.secondary.connected {
+            pointing_at(&self.secondary, &self.world)
+        } else {
+            (None, None)
+        };
+
+        if primary_pressed && secondary_pressed {
+            if let Some(ref mut g) = self.grabbed {
+                g.set_position(self.primary.pose());
+            } else {
+                match (primary_point_at.0, secondary_point_at.0) {
+                    (None, None) => {
+                        // The controllers are not pointed at any block and they are pointed
+                        // generally downward.
+                        if self.primary.pointing().dot(&Vector3::new(0., -1., 0.)).acos() <
+                           PI / 4. &&
+                           self.primary.pointing().dot(&Vector3::new(0., -1., 0.)).acos() <
+                           PI / 4. {
+                            self.grabbed = Some(GrabbedBody::New(self.primary.pose()));
+                        }
+                    }
+                    (Some(p), Some(s)) => {
+                        if Rc::ptr_eq(&p, &s) {
+                            self.world.remove_rigid_body(&p);
+                            self.grabbed = Some(GrabbedBody::Relocating(p.clone()));
+                        }
+                    }
+                    _ => {}
+                };
+            }
+        } else if !primary_pressed && !secondary_pressed {
+            self.world.add_rigid_body(match self.grabbed {
+                GrabbedBody::New(loc) => {
+                    let block = Cuboid::new(Vector3::new(0.15, 0.15, 0.3));
+                    let mut block_rb = RigidBody::new_dynamic(block, 100., 0.0, 0.8);
+                    block_rb.set_margin(0.00001);
+                    block_rb.append_transformation(loc);
+                    block_rb
+                }
+                GrabbedBody::Relocating => {}
+            });
+            self.grabbed = None;
+        }
+
         // Draw controllers
         let mut draw_controller = |controller: &ViveController, pressed, dist: f32| {
             self.pbr.draw(ctx, na::convert(controller.pose), &self.controller);
@@ -279,67 +389,18 @@ impl<R: gfx::Resources> App<R> {
             } else {
                 &self.blue_ray
             };
-            self.solid.draw(ctx,
-                            na::convert(Similarity3::from_isometry(controller.pose(),
-                                                                   dist.min(5.).max(0.2))),
-                            ray);
+            let sim = Similarity3::from_isometry(controller.pose(), dist.min(5.).max(0.2));
+            self.solid.draw(ctx, na::convert(sim), ray);
         };
 
-        // Handle Controller Events
-        let pointing_at = |controller: &ViveController| {
-            let ray = Ray::new(controller.origin(), controller.pointing());
-            let all_groups = &CollisionGroups::new();
+        if primary_point_at.1.is_some() {
+            draw_controller(&self.primary, primary_pressed, primary_point_at.1.unwrap());
+        }
 
-            println!("{}",
-                     self.world
-                         .collision_world()
-                         .interferences_with_ray(&ray, all_groups)
-                         .count());
-
-            // Track minimum value
-            let mut mintoi = Bounded::max_value();
-            let mut closest_body = None;
-            for (b, inter) in self.world
-                .collision_world()
-                .interferences_with_ray(&ray, all_groups) {
-                if inter.toi < mintoi {
-                    println!("HERE: {}", inter.toi);
-                    if let &WorldObject::RigidBody(ref rb) = &b.data {
-                        mintoi = inter.toi;
-                        closest_body = Some(rb.clone());
-                    }
-                }
-            }
-
-            (closest_body, mintoi)
-        };
-
-        let primary_pressed = self.primary.trigger > TRIGGER_THRESHOLD;
-        let secondary_pressed = self.secondary.trigger > TRIGGER_THRESHOLD;
-
-        let primary_point_at = if self.primary.connected {
-            let (primary_point_at, dist) = pointing_at(&self.primary);
-            draw_controller(&self.primary, primary_pressed, dist);
-            primary_point_at
-        } else {
-            None
-        };
-
-        let secondary_point_at = if self.secondary.connected {
-            let (secondary_point_at, dist) = pointing_at(&self.secondary);
-            draw_controller(&self.secondary, secondary_pressed, dist);
-            secondary_point_at
-        } else {
-            None
-        };
-
-        if primary_pressed && secondary_pressed {
-            match (primary_point_at, secondary_point_at) {
-                (Some(p), Some(s)) => {
-                    println!("HERE");
-                }
-                _ => {}
-            }
+        if secondary_point_at.1.is_some() {
+            draw_controller(&self.secondary,
+                            secondary_pressed,
+                            secondary_point_at.1.unwrap());
         }
     }
 }
