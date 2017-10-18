@@ -38,20 +38,6 @@ const PI: f32 = ::std::f32::consts::PI;
 const PI2: f32 = 2. * PI;
 const DEG: f32 = PI2 / 360.;
 
-enum GrabbedBody {
-    New(Isometry3<f32>),
-    Relocating(RigidBodyHandle<f32>),
-}
-
-impl GrabbedBody {
-    pub fn set_position(&mut self, isometry: Isometry3<f32>) {
-        match *self {
-            GrabbedBody::New(ref mut pos) => *pos = isometry,
-            GrabbedBody::Relocating(ref han) => han.borrow_mut().set_transformation(isometry),
-        }
-    }
-}
-
 pub struct App<R: gfx::Resources> {
     solid: Painter<R, SolidStyle<R>>,
     objects: Vec<(RigidBodyHandle<f32>, PbrMesh<R>)>,
@@ -66,7 +52,7 @@ pub struct App<R: gfx::Resources> {
     world: World<f32>,
     red_ray: Mesh<R, VertC, ()>,
     blue_ray: Mesh<R, VertC, ()>,
-    grabbed: Option<GrabbedBody>,
+    grabbed: Option<RigidBody<f32>>,
 }
 
 fn make_ray(color: [f32; 3]) -> MeshSource<VertC, ()> {
@@ -178,21 +164,21 @@ impl<R: gfx::Resources> App<R> {
         world.add_rigid_body(floor_rb);
 
         let snow_block = load::object_directory(factory, "assets/snow-block/")?;
-        // let objs = Vec::new();
+        let objs = Vec::new();
 
         // TODO: REMOVE, need to do controllers
-        let block = Cuboid::new(Vector3::new(0.15, 0.15, 0.3));
-        let mut block_rb = RigidBody::new_dynamic(block, 100., 0.0, 0.8);
-        block_rb.set_margin(0.00001);
-        block_rb.set_translation(Translation3::new(1.5, 1.0, 1.5));
+        // let block = Cuboid::new(Vector3::new(0.15, 0.15, 0.3));
+        // let mut block_rb = RigidBody::new_dynamic(block, 100., 0.0, 0.8);
+        // block_rb.set_margin(0.00001);
+        // block_rb.set_translation(Translation3::new(1.5, 1.0, 1.5));
 
-        let block = Cuboid::new(Vector3::new(0.15, 0.15, 0.3));
-        let mut block_rb2 = RigidBody::new_dynamic(block, 100., 0.0, 0.8);
-        block_rb2.set_margin(0.00001);
-        block_rb2.set_translation(Translation3::new(1.5, 2.0, 1.5));
+        // let block = Cuboid::new(Vector3::new(0.15, 0.15, 0.3));
+        // let mut block_rb2 = RigidBody::new_dynamic(block, 100., 0.0, 0.8);
+        // block_rb2.set_margin(0.00001);
+        // block_rb2.set_translation(Translation3::new(1.5, 2.0, 1.5));
 
-        let objs = vec![(world.add_rigid_body(block_rb), snow_block.clone()),
-                        (world.add_rigid_body(block_rb2), snow_block.clone())];
+        // let objs = vec![(world.add_rigid_body(block_rb), snow_block.clone()),
+        //                 (world.add_rigid_body(block_rb2), snow_block.clone())];
         // TODO: END REMOVE
 
         // Construct App
@@ -297,6 +283,12 @@ impl<R: gfx::Resources> App<R> {
             self.pbr.draw(ctx, block_pos, &self.snow_block);
         }
 
+        // Graw the currently grabbed block
+        if let Some(ref g) = self.grabbed {
+            let grabbed_pos = na::convert(vrm.stage * g.position());
+            self.pbr.draw(ctx, grabbed_pos, &self.snow_block);
+        }
+
         // Draw grid
         self.solid.draw(ctx, vrm.stage * Translation3::new(0., 4., 0.), &self.grid);
 
@@ -331,6 +323,7 @@ impl<R: gfx::Resources> App<R> {
         let primary_pressed = self.primary.trigger > TRIGGER_THRESHOLD;
         let secondary_pressed = self.secondary.trigger > TRIGGER_THRESHOLD;
 
+        // Determine what the controllers are are pointed at
         let primary_point_at = if self.primary.connected {
             pointing_at(&self.primary, &self.world)
         } else {
@@ -343,9 +336,10 @@ impl<R: gfx::Resources> App<R> {
             (None, None)
         };
 
+        // Handle spawning/moving of blocks
         if primary_pressed && secondary_pressed {
             if let Some(ref mut g) = self.grabbed {
-                g.set_position(self.primary.pose());
+                g.append_transformation(&self.primary.pose());
             } else {
                 match (primary_point_at.0, secondary_point_at.0) {
                     (None, None) => {
@@ -355,30 +349,26 @@ impl<R: gfx::Resources> App<R> {
                            PI / 4. &&
                            self.primary.pointing().dot(&Vector3::new(0., -1., 0.)).acos() <
                            PI / 4. {
-                            self.grabbed = Some(GrabbedBody::New(self.primary.pose()));
+                            let block = Cuboid::new(Vector3::new(0.15, 0.15, 0.3));
+                            let mut block = RigidBody::new_dynamic(block, 100., 0.0, 0.8);
+                            block.set_margin(0.00001);
+                            self.grabbed = Some(block);
                         }
                     }
                     (Some(p), Some(s)) => {
                         if Rc::ptr_eq(&p, &s) {
                             self.world.remove_rigid_body(&p);
-                            self.grabbed = Some(GrabbedBody::Relocating(p.clone()));
+                            self.objects.retain(|o| !Rc::ptr_eq(&p, &o.0));
+                            self.grabbed = Some(p.borrow().clone());
                         }
                     }
                     _ => {}
                 };
             }
         } else if !primary_pressed && !secondary_pressed {
-            self.world.add_rigid_body(match self.grabbed {
-                GrabbedBody::New(loc) => {
-                    let block = Cuboid::new(Vector3::new(0.15, 0.15, 0.3));
-                    let mut block_rb = RigidBody::new_dynamic(block, 100., 0.0, 0.8);
-                    block_rb.set_margin(0.00001);
-                    block_rb.append_transformation(loc);
-                    block_rb
-                }
-                GrabbedBody::Relocating => {}
-            });
-            self.grabbed = None;
+            if let Some(g) = self.grabbed.take() {
+                self.world.add_rigid_body(g);
+            }
         }
 
         // Draw controllers
