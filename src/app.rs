@@ -379,7 +379,6 @@ impl<R: gfx::Resources> App<R> {
             } else {
                 &self.blue_ray
             };
-            println!("{}", dist);
             let sim = Similarity3::from_isometry(controller.pose(), dist.min(5.).max(0.2));
             self.solid.draw(ctx, na::convert(sim), ray);
         };
