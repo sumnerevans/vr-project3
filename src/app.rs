@@ -324,8 +324,8 @@ impl<R: gfx::Resources> App<R> {
         // Handle spawning/moving of blocks
         if primary_pressed && secondary_pressed {
             let lerp_vec = 0.5 *
-                           (self.primary.pose.translation.vector +
-                            self.secondary.pose.translation.vector);
+                           (stage_inv * self.primary.pose.translation.vector +
+                            stage_inv * self.secondary.pose.translation.vector);
             let lerp_trans = Translation3::from_vector(lerp_vec);
             let lerp_rot = self.primary.pose.rotation.slerp(&self.secondary.pose.rotation, 0.5);
             let mid_controller = Isometry3::from_parts(lerp_trans, lerp_rot);
