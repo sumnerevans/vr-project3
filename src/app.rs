@@ -14,7 +14,7 @@ use gfx::traits::FactoryExt;
 use nalgebra::{Point2, Point3, Rotation3, Similarity3, Translation3, Vector3, self as na};
 
 // Physics
-use nalgebra::geometry::Isometry3;
+use nalgebra::geometry::{Isometry3, UnitQuaternion};
 use ncollide::query::Ray;
 use ncollide::shape::{Cuboid, Plane};
 use ncollide::world::CollisionGroups;
@@ -322,16 +322,16 @@ impl<R: gfx::Resources> App<R> {
         };
 
         // Handle spawning/moving of blocks
-        if primary_pressed && secondary_pressed {
-            // let lerp_vec = stage_inv * 0.5 *
-            //                (self.primary.pose.translation.vector +
-            //                 self.secondary.pose.translation.vector);
-            // let lerp_trans = Translation3::from_vector(lerp_vec);
-            // let lerp_rot =
-            // self.primary.pose.rotation.slerp(&self.secondary.pose.rotation, 0.5);
-            // let mid_controller = Isometry3::from_parts(lerp_trans, lerp_rot);
+        if primary_pressed || secondary_pressed {
+            let lerp_vec = 0.5 *
+                           (self.primary.pose.translation.vector +
+                            self.secondary.pose.translation.vector);
+            let lerp_trans = Translation3::from_vector(lerp_vec);
+            let lerp_rot = self.primary.pose.rotation.slerp(&self.secondary.pose.rotation, 0.5);
+            let xz_rot = UnitQuaternion::from_axis_angle(&Vector3::y_axis(), PI / 2.);
+            let mid_controller = stage_inv * Isometry3::from_parts(lerp_trans, lerp_rot) * xz_rot;
             if let Some(ref mut g) = self.grabbed {
-                g.set_transformation(stage_inv * self.primary.pose);
+                g.set_transformation(mid_controller);
             } else {
                 match (primary_point_at.0, secondary_point_at.0) {
                     (None, None) => {
@@ -343,7 +343,7 @@ impl<R: gfx::Resources> App<R> {
                             let block = Cuboid::new(Vector3::new(0.15, 0.15, 0.3));
                             let mut block = RigidBody::new_dynamic(block, 100., 0.0, 0.8);
                             block.set_margin(0.00001);
-                            block.set_transformation(stage_inv * self.primary.pose);
+                            block.set_transformation(mid_controller);
                             self.grabbed = Some(block);
                         }
                     }
