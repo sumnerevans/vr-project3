@@ -62,7 +62,7 @@ fn make_ray(color: [f32; 3]) -> MeshSource<VertC, ()> {
                         color: color,
                     },
                     VertC {
-                        pos: [0., 0., -4.],
+                        pos: [0., 0., -1.],
                         color: color,
                     }],
         inds: Indexing::All,
@@ -339,7 +339,7 @@ impl<R: gfx::Resources> App<R> {
 
             if let Some(ref mut g) = self.grabbed {
                 g.set_transformation(mid_controller);
-            } else {
+            } else if primary_pressed && secondary_pressed{
                 match (primary_point_at.0, secondary_point_at.0) {
                     (None, None) => {
                         // The controllers are not pointed at any block and they are pointed
@@ -351,6 +351,7 @@ impl<R: gfx::Resources> App<R> {
                         }
                     }
                     (Some(p), Some(s)) => {
+                        // Both controllers are pointed at something.
                         if Rc::ptr_eq(&p, &s) {
                             // Remove the old block from the world.
                             self.world.remove_rigid_body(&p);
@@ -364,7 +365,7 @@ impl<R: gfx::Resources> App<R> {
                 };
             }
         } else if !primary_pressed && !secondary_pressed {
-            // Once both are released, drop the block.
+            // Once both triggers are released, drop the block.
             if let Some(g) = self.grabbed.take() {
                 self.objects.push((self.world.add_rigid_body(g), self.snow_block.clone()));
             }
@@ -378,6 +379,7 @@ impl<R: gfx::Resources> App<R> {
             } else {
                 &self.blue_ray
             };
+            println!("{}", dist);
             let sim = Similarity3::from_isometry(controller.pose(), dist.min(5.).max(0.2));
             self.solid.draw(ctx, na::convert(sim), ray);
         };
