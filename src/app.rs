@@ -285,8 +285,7 @@ impl<R: gfx::Resources> App<R> {
         // Handle Controller Events
         let stage_inv: Isometry3<f32> = na::try_convert(vrm.stage.try_inverse().unwrap()).unwrap();
         let pointing_at = |controller: &ViveController, world: &World<f32>| {
-            let ray = Ray::new(stage_inv * controller.origin(),
-                               stage_inv * controller.pointing());
+            let ray = Ray::new(stage_inv * controller.origin(), stage_inv * controller.pointing());
 
             // Track minimum value
             let mut mintoi = Bounded::max_value();
@@ -353,8 +352,11 @@ impl<R: gfx::Resources> App<R> {
                     }
                     (Some(p), Some(s)) => {
                         if Rc::ptr_eq(&p, &s) {
+                            // Remove the old block from the world.
                             self.world.remove_rigid_body(&p);
                             self.objects.retain(|o| !Rc::ptr_eq(&p, &o.0));
+
+                            // Grab a new block
                             self.grabbed = create_block();
                         }
                     }
@@ -362,6 +364,7 @@ impl<R: gfx::Resources> App<R> {
                 };
             }
         } else if !primary_pressed && !secondary_pressed {
+            // Once both are released, drop the block.
             if let Some(g) = self.grabbed.take() {
                 self.objects.push((self.world.add_rigid_body(g), self.snow_block.clone()));
             }
@@ -384,9 +387,7 @@ impl<R: gfx::Resources> App<R> {
         }
 
         if secondary_point_at.1.is_some() {
-            draw_controller(&self.secondary,
-                            secondary_pressed,
-                            secondary_point_at.1.unwrap());
+            draw_controller(&self.secondary, secondary_pressed, secondary_point_at.1.unwrap());
         }
     }
 }
