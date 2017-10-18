@@ -54,13 +54,13 @@ pub struct App<R: gfx::Resources> {
 fn make_ray(color: [f32; 3]) -> MeshSource<VertC, ()> {
     MeshSource {
         verts: vec![VertC {
-            pos: [0., 0., 0.],
-            color: color,
-        },
-        VertC {
-            pos: [0., 0., -4.],
-            color: color,
-        }],
+                        pos: [0., 0., 0.],
+                        color: color,
+                    },
+                    VertC {
+                        pos: [0., 0., -4.],
+                        color: color,
+                    }],
         inds: Indexing::All,
         prim: Primitive::LineList,
         mat: (),
@@ -121,22 +121,22 @@ fn grid_lines(count: i32, size: Vector3<f32>) -> MeshSource<VertC, ()> {
 fn load_simple_object<P, R, F>(f: &mut F,
                                path: P,
                                albedo: [u8; 4])
--> Result<Mesh<R, VertNTT, PbrMaterial<R>>, Error>
-where P: AsRef<Path>,
-      R: gfx::Resources,
-      F: gfx::Factory<R>
+                               -> Result<Mesh<R, VertNTT, PbrMaterial<R>>, Error>
+    where P: AsRef<Path>,
+          R: gfx::Resources,
+          F: gfx::Factory<R>
 {
     use gfx::format::*;
     Ok(load::wavefront_file(path)
-       ?
-       .compute_tan()
-       .with_material(PbrMaterial {
-           normal: Texture::<_, (R8_G8_B8_A8, Unorm)>::uniform_value(f, albedo)?,
-           albedo: Texture::<_, (R8_G8_B8_A8, Srgb)>::uniform_value(f, [0x60, 0x60, 0x60, 0xFF])?,
-           metalness: Texture::<_, (R8, Unorm)>::uniform_value(f, 0x00)?,
-           roughness: Texture::<_, (R8, Unorm)>::uniform_value(f, 0x20)?,
-       })
-       .upload(f))
+        ?
+        .compute_tan()
+        .with_material(PbrMaterial {
+            normal: Texture::<_, (R8_G8_B8_A8, Unorm)>::uniform_value(f, albedo)?,
+            albedo: Texture::<_, (R8_G8_B8_A8, Srgb)>::uniform_value(f, [0x60, 0x60, 0x60, 0xFF])?,
+            metalness: Texture::<_, (R8, Unorm)>::uniform_value(f, 0x00)?,
+            roughness: Texture::<_, (R8, Unorm)>::uniform_value(f, 0x20)?,
+        })
+        .upload(f))
 }
 
 impl<R: gfx::Resources> App<R> {
@@ -171,18 +171,18 @@ impl<R: gfx::Resources> App<R> {
             controller: load_simple_object(factory,
                                            "assets/controller.obj",
                                            [0x80, 0x80, 0xFF, 0xFF])?,
-                                           snowman: load::object_directory(factory, "assets/snowman/")?,
-                                           snow_block: snow_block,
-                                           last_time: None,
-                                           primary: ViveController {
-                                               is: primary(),
-                                               pad: Point2::new(1., 0.),
-                                               ..Default::default()
-                                           },
-                                           secondary: ViveController { is: secondary(), ..Default::default() },
-                                           world: world,
-                                           red_ray: make_ray([1., 0., 0.]).upload(factory),
-                                           blue_ray: make_ray([0., 0., 1.]).upload(factory),
+            snowman: load::object_directory(factory, "assets/snowman/")?,
+            snow_block: snow_block,
+            last_time: None,
+            primary: ViveController {
+                is: primary(),
+                pad: Point2::new(1., 0.),
+                ..Default::default()
+            },
+            secondary: ViveController { is: secondary(), ..Default::default() },
+            world: world,
+            red_ray: make_ray([1., 0., 0.]).upload(factory),
+            blue_ray: make_ray([0., 0., 1.]).upload(factory),
         })
     }
 
@@ -212,9 +212,9 @@ impl<R: gfx::Resources> App<R> {
         ctx.encoder.clear_depth(&ctx.depth, FAR_PLANE as f32);
         ctx.encoder.clear(&ctx.color,
                           [BACKGROUND[0].powf(1. / 2.2),
-                          BACKGROUND[1].powf(1. / 2.2),
-                          BACKGROUND[2].powf(1. / 2.2),
-                          BACKGROUND[3]]);
+                           BACKGROUND[1].powf(1. / 2.2),
+                           BACKGROUND[2].powf(1. / 2.2),
+                           BACKGROUND[3]]);
 
         // Controller light
         let cont_light = if self.secondary.connected {
@@ -230,29 +230,29 @@ impl<R: gfx::Resources> App<R> {
         self.pbr.cfg(|s| {
             s.ambient([0.2, 0.2, 0.2, 1.0]);
             s.lights(&[Light {
-                pos: vrm.stage * Point3::new(4., 8., 4.),
-                color: [0.9, 0.8, 0.7, 10.],
-            },
-            Light {
-                pos: vrm.stage * Point3::new(-4., 8., 4.),
-                color: [0.9, 0.8, 0.7, 10.],
-            },
-            Light {
-                pos: vrm.stage * Point3::new(-4., 8., -4.),
-                color: [0.9, 0.8, 0.7, 10.],
-            },
-            Light {
-                pos: vrm.stage * Point3::new(4., 8., -4.),
-                color: [0.9, 0.8, 0.7, 10.],
-            },
-            cont_light]);
+                           pos: vrm.stage * Point3::new(4., 8., 4.),
+                           color: [0.9, 0.8, 0.7, 10.],
+                       },
+                       Light {
+                           pos: vrm.stage * Point3::new(-4., 8., 4.),
+                           color: [0.9, 0.8, 0.7, 10.],
+                       },
+                       Light {
+                           pos: vrm.stage * Point3::new(-4., 8., -4.),
+                           color: [0.9, 0.8, 0.7, 10.],
+                       },
+                       Light {
+                           pos: vrm.stage * Point3::new(4., 8., -4.),
+                           color: [0.9, 0.8, 0.7, 10.],
+                       },
+                       cont_light]);
         });
 
         // Draw snowmen
         let snowmen_locations = vec![Translation3::new(2., 0., 2.),
-        Translation3::new(-2., 0., 2.),
-        Translation3::new(-2., 0., -2.),
-        Translation3::new(2., 0., -2.)];
+                                     Translation3::new(-2., 0., 2.),
+                                     Translation3::new(-2., 0., -2.),
+                                     Translation3::new(2., 0., -2.)];
         for loc in snowmen_locations {
             self.pbr.draw(ctx, vrm.stage * loc, &self.snowman);
         }
@@ -272,7 +272,7 @@ impl<R: gfx::Resources> App<R> {
         }
 
         // Draw controllers
-        let mut draw_controller = |controller: &ViveController, pressed, dist| {
+        let mut draw_controller = |controller: &ViveController, pressed, dist: f32| {
             self.pbr.draw(ctx, na::convert(controller.pose), &self.controller);
             let ray = if pressed {
                 &self.red_ray
@@ -280,28 +280,36 @@ impl<R: gfx::Resources> App<R> {
                 &self.blue_ray
             };
             self.solid.draw(ctx,
-                            na::convert(Similarity3::from_isometry(controller.pose(), dist)),
+                            na::convert(Similarity3::from_isometry(controller.pose(),
+                                                                   dist.min(5.).max(0.2))),
                             ray);
         };
 
         // Handle Controller Events
-        let mut pointing_at = |controller: &ViveController| {
+        let pointing_at = |controller: &ViveController| {
             let ray = Ray::new(controller.origin(), controller.pointing());
             let all_groups = &CollisionGroups::new();
+
+            println!("{}",
+                     self.world
+                         .collision_world()
+                         .interferences_with_ray(&ray, all_groups)
+                         .count());
 
             // Track minimum value
             let mut mintoi = Bounded::max_value();
             let mut closest_body = None;
             for (b, inter) in self.world
                 .collision_world()
-                    .interferences_with_ray(&ray, all_groups) {
-                        if inter.toi < mintoi {
-                            if let &WorldObject::RigidBody(ref rb) = &b.data {
-                                mintoi = inter.toi;
-                                closest_body = Some(rb.clone());
-                            }
-                        }
+                .interferences_with_ray(&ray, all_groups) {
+                if inter.toi < mintoi {
+                    println!("HERE: {}", inter.toi);
+                    if let &WorldObject::RigidBody(ref rb) = &b.data {
+                        mintoi = inter.toi;
+                        closest_body = Some(rb.clone());
                     }
+                }
+            }
 
             (closest_body, mintoi)
         };
@@ -329,7 +337,7 @@ impl<R: gfx::Resources> App<R> {
             match (primary_point_at, secondary_point_at) {
                 (Some(p), Some(s)) => {
                     println!("HERE");
-                },
+                }
                 _ => {}
             }
         }
