@@ -283,7 +283,7 @@ impl<R: gfx::Resources> App<R> {
         }
 
         // Handle Controller Events
-        let stage_inv = vrm.stage.try_inverse().unwrap();
+        let stage_inv: Isometry3<f32> = na::try_convert(vrm.stage.try_inverse().unwrap()).unwrap();
         let pointing_at = |controller: &ViveController, world: &World<f32>| {
             let ray = Ray::new(stage_inv * controller.origin(),
                                stage_inv * controller.pointing());
@@ -323,14 +323,15 @@ impl<R: gfx::Resources> App<R> {
 
         // Handle spawning/moving of blocks
         if primary_pressed && secondary_pressed {
-            let lerp_vec = 0.5 *
-                           (self.primary.pose.translation.vector +
-                            self.secondary.pose.translation.vector);
-            let lerp_trans = Translation3::from_vector(stage_inv * lerp_vec);
-            let lerp_rot = self.primary.pose.rotation.slerp(&self.secondary.pose.rotation, 0.5);
-            let mid_controller = Isometry3::from_parts(lerp_trans, lerp_rot);
+            // let lerp_vec = stage_inv * 0.5 *
+            //                (self.primary.pose.translation.vector +
+            //                 self.secondary.pose.translation.vector);
+            // let lerp_trans = Translation3::from_vector(lerp_vec);
+            // let lerp_rot =
+            // self.primary.pose.rotation.slerp(&self.secondary.pose.rotation, 0.5);
+            // let mid_controller = Isometry3::from_parts(lerp_trans, lerp_rot);
             if let Some(ref mut g) = self.grabbed {
-                g.set_transformation(mid_controller);
+                g.set_transformation(stage_inv * self.primary.pose);
             } else {
                 match (primary_point_at.0, secondary_point_at.0) {
                     (None, None) => {
@@ -342,7 +343,7 @@ impl<R: gfx::Resources> App<R> {
                             let block = Cuboid::new(Vector3::new(0.15, 0.15, 0.3));
                             let mut block = RigidBody::new_dynamic(block, 100., 0.0, 0.8);
                             block.set_margin(0.00001);
-                            block.set_transformation(mid_controller);
+                            block.set_transformation(stage_inv * self.primary.pose);
                             self.grabbed = Some(block);
                         }
                     }
