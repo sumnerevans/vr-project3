@@ -268,7 +268,7 @@ impl<R: gfx::Resources> App<R> {
             self.pbr.draw(ctx, block_pos, &self.snow_block);
         }
 
-        // Graw the currently grabbed block
+        // Draw the currently grabbed block
         if let Some(ref g) = self.grabbed {
             let grabbed_pos = na::convert(vrm.stage * g.position());
             self.pbr.draw(ctx, grabbed_pos, &self.snow_block);
@@ -342,7 +342,7 @@ impl<R: gfx::Resources> App<R> {
                             let block = Cuboid::new(Vector3::new(0.15, 0.15, 0.3));
                             let mut block = RigidBody::new_dynamic(block, 100., 0.0, 0.8);
                             block.set_margin(0.00001);
-                            block.append_transformation(&mid_controller);
+                            block.set_transformation(mid_controller);
                             self.grabbed = Some(block);
                         }
                     }
