@@ -338,20 +338,26 @@ impl<R: gfx::Resources> App<R> {
 
         // Handle spawning/moving of blocks
         if primary_pressed && secondary_pressed {
+            let lerp_vec = 0.5 *
+                           (self.primary.pose.translation.vector +
+                            self.secondary.pose.translation.vector);
+            let lerp_trans = Translation3::from_vector(lerp_vec);
+            let lerp_rot = self.primary.pose.rotation.slerp(&self.secondary.pose.rotation, 0.5);
+            let mid_controller = Isometry3::from_parts(lerp_trans, lerp_rot);
             if let Some(ref mut g) = self.grabbed {
-                g.append_transformation(&self.primary.pose());
+                g.append_transformation(&mid_controller);
             } else {
                 match (primary_point_at.0, secondary_point_at.0) {
                     (None, None) => {
                         // The controllers are not pointed at any block and they are pointed
                         // generally downward.
-                        if self.primary.pointing().dot(&Vector3::new(0., -1., 0.)).acos() <
-                           PI / 4. &&
-                           self.primary.pointing().dot(&Vector3::new(0., -1., 0.)).acos() <
-                           PI / 4. {
+                        let down = Vector3::new(0., -1., 0.);
+                        if self.primary.pointing().dot(&down).acos() < PI / 4. &&
+                           self.primary.pointing().dot(&down).acos() < PI / 4. {
                             let block = Cuboid::new(Vector3::new(0.15, 0.15, 0.3));
                             let mut block = RigidBody::new_dynamic(block, 100., 0.0, 0.8);
                             block.set_margin(0.00001);
+                            block.append_transformation(&mid_controller);
                             self.grabbed = Some(block);
                         }
                     }
