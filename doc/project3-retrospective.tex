@@ -1,0 +1,91 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{enumitem}
+\usepackage{minted}
+\usepackage{titlesec}
+\usepackage{textcomp}
+\usepackage{amsmath}
+\usepackage[makeroom]{cancel}
+
+\setlength{\parindent}{0cm}
+
+\title{Project 3 Retrospective}
+\author{Sumner Evans}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section{Introduction}
+For my individual project, I created Snowflakes, a winter-themed environment
+where users can create their own structures by manipulating snow blocks.
+Although I did not accomplish all of my initial goals, the project was extremely
+successful and I learned valuable lessons about user interaction via the
+controllers and handling physics-aware VR objects.
+
+\section{Goals}
+The following list describes my initial goals for Snowflakes. (Items marked with
+an * indicate that the goal was initially a stretch goal.)
+\begin{itemize}
+    \item The environment will have ``snow'' on the ground.
+    \item The environment will have static winter themed items.
+    \item The environment will have snow falling.
+    \item The user will be able to create new snow blocks by pointing both
+        controllers at the ground and pulling both of the triggers. This action
+        will create a snow block being held between the users hands.
+    \item When the user releases the triggers, the snow block will fall.
+    \item The user will be able to grab existing blocks by pointing at them with
+        both controllers and pulling both triggers. This will teleport the block
+        into their hands.
+    \item The snow blocks will fall in a physically-accurate manner with
+        collision detection.
+    \item * The user will be able to create snowballs by pointing one
+        controller at the ground and pulling the trigger.
+    \item * The user will be able to throw the snowballs at the blocks to
+        ``break'' the blocks.
+    \item * Sounds such as Christmas music will be output to the VR headset's
+        audio jack to enhance the experience.
+\end{itemize}
+
+\section{Changes for the Actual Implementation}
+\begin{itemize}
+    \item I did not add snow to the ground. This proved to be problematic since
+        we have not yet implemented shadows for \texttt{flight}. The actual snow
+        blocks would have been too hard to see.
+
+    \item I did not add snowflakes falling from the sky because \texttt{flight}
+        does not yet have good support for rendering particle systems and I did
+        not have time (or expertise) to implement that functionality myself.
+\end{itemize}
+
+\section{Unexpected Roadblocks}
+I ran into many unexpected difficulties while implementing this project. Below
+are three that stood out as most difficult to solve.
+\begin{itemize}
+    \item Integrating the \texttt{nphysics3d} library with existing items in the
+        world proved to be difficult. I had to associate the physics world and
+        the rendering world in a way that the rendering world would be updated
+        when the physics world changed.
+
+    \item Dealing with time step of the physics world was non-trivial. After
+        much debugging, I realized that, if the world time-step was too large,
+        collision handling started to behave oddly. From the time of the
+        application start to the first frame can be close to 2 seconds which
+        leads to problems to the physics library. To fix this, I maxed out the
+        time step to a small number.
+
+    \item Pointing at things in the world ended up being much more difficult
+        than I initially expected. The largest difficulty was that with the
+        libraries I used, static objects in the world (such as the floor) do not
+        participate in certain collision detection functions. I ended up having
+        to use some dot-product math to determine if the user was pointing to
+        the floor or not when the pulled the triggers.
+\end{itemize}
+
+\section{Conclusion}
+I was unable to implement all of my initial goals for Snowflakes, but I was able
+to implement the core functionality of creating snow blocks and having them
+interact in a physically-accurate manner. Overall, the project was a success and
+I look forward to improving it for the final deliverable.
+
+\end{document}
